@@ -15,7 +15,6 @@ import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
-//import java.math.Integer;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.LinkedList;
 
@@ -30,7 +29,7 @@ public class Main extends JPanel implements ActionListener {
     static final int FONT_SIZE = 30;
 
     LinkedList<Point> path = new LinkedList<>();
-    int [][] dist = new int [0][0];
+    int[][] dist = new int[0][0];
 
     int toolbarHeight, offsetX, offsetY, miceX, miceY;
     int currentX, currentY, startX, startY, endX, endY, viewportW, viewportH;
@@ -44,9 +43,9 @@ public class Main extends JPanel implements ActionListener {
 
     Image img = new ImageIcon("gfx/test.png").getImage();
     Image img2 = new ImageIcon("gfx/test2.png").getImage();
-    
+
     Font font = new Font("TimesRoman", Font.PLAIN, FONT_SIZE - 12);
-    
+
     Timer timer = new Timer(20, this);
     JFrame frame;
 
@@ -54,24 +53,23 @@ public class Main extends JPanel implements ActionListener {
         MouseAdapter mAdapter = new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
                 if (e.getButton() == 3) {
-                    endX = currentX;
-                    endY = currentY;
-                    if (startX != 0 || startY != 0) {
-                        LeeAlgorithm la = new LeeAlgorithm(map, startX, startY, endX, endY);
-                        dist = la.runLeeAlgorithm();
-                        try {
-                            path = la.buildPath();    
-                        } catch (Exception ex) {
-                            System.out.println(ex.getMessage());
+                    if (map[currentX][currentY] != TILE_BLOCKED) {
+                        endX = currentX;
+                        endY = currentY;
+                        if (startX != 0 || startY != 0) {
+                            LeeAlgorithm la = new LeeAlgorithm(map, startX, startY, endX, endY);
+                            dist = la.runLeeAlgorithm();
+                            if (la.buildPath() != null) {
+                                path = la.buildPath();
+                            }
                         }
+                    } else if (e.getButton() == 2) {
+                        int mX = (e.getX() - offsetX) / TILE_WIDTH;
+                        int mY = (e.getY() - offsetY) / TILE_HEIGHT;
+                        map[mX + viewportX][mY + viewportY] = map[mX + viewportX][mY + viewportY] != TILE_BLOCKED
+                                ? TILE_BLOCKED
+                                : TILE_FREE;
                     }
-                else if (e.getButton() == 2) {
-                    int mX = (e.getX() - offsetX) / TILE_WIDTH;
-                    int mY = (e.getY() - offsetY) / TILE_HEIGHT;
-                    map[mX + viewportX][mY + viewportY] = map[mX + viewportX][mY + viewportY] != TILE_BLOCKED
-                           ? TILE_BLOCKED
-                           : TILE_FREE;
-                }
                 } else if (e.getButton() == 1)
                     if (map[currentX][currentY] != TILE_BLOCKED) {
                         startX = currentX;
@@ -79,7 +77,9 @@ public class Main extends JPanel implements ActionListener {
                         if (endX != 0 || endY != 0) {
                             LeeAlgorithm la = new LeeAlgorithm(map, startX, startY, endX, endY);
                             dist = la.runLeeAlgorithm();
-                            path = la.buildPath();
+                            if (la.buildPath() != null) {
+                                path = la.buildPath();
+                            }
                         }
                     }
             }
@@ -88,9 +88,11 @@ public class Main extends JPanel implements ActionListener {
                 miceX = e.getX();
                 miceY = e.getY();
                 currentX = (miceX - offsetX) / TILE_WIDTH + viewportX;
-                if (currentX > map.length - 2) currentX = map.length - 2;
+                if (currentX > map.length - 2)
+                    currentX = map.length - 2;
                 currentY = (miceY - offsetY) / TILE_HEIGHT + viewportY;
-                if (currentY > map[0].length - 2) currentY = map[0].length - 2;
+                if (currentY > map[0].length - 2)
+                    currentY = map[0].length - 2;
             }
         };
         addMouseListener(mAdapter);
@@ -99,10 +101,11 @@ public class Main extends JPanel implements ActionListener {
 
     /**
      * Конструктор. Создание нового объекта с переданными значениями
-     * @param frame Объект JFrame
-     * @param width Ширина карты в клетках
-     * @param height Высота карты в клетках
-     * @param randomize Заполнять карту случайными препятствиями
+     * 
+     * @param frame         Объект JFrame
+     * @param width         Ширина карты в клетках
+     * @param height        Высота карты в клетках
+     * @param randomize     Заполнять карту случайными препятствиями
      * @param toolbarHeight Высота панели интерфейса
      */
     public Main(JFrame frame, int width, int height, boolean randomize, int toolbarHeight) {
@@ -111,31 +114,31 @@ public class Main extends JPanel implements ActionListener {
         this.dist = new int[width][height];
         this.miceX = frame.getWidth() / 2;
         this.miceY = frame.getHeight() / 2;
-        
+
         if ((map.length - 2) * TILE_WIDTH < frame.getWidth()) {
             this.viewportW = map.length - 3;
             isScrollBlocked = true;
         } else {
             this.viewportW = Math.round(frame.getWidth() / TILE_WIDTH);
         }
-       
+
         if ((map[0].length - 2) * TILE_HEIGHT < frame.getHeight()) {
             this.viewportH = map[0].length - 3;
             isScrollBlocked = true;
         } else {
             this.viewportH = Math.round(frame.getHeight() / TILE_HEIGHT);
         }
-        
+
         this.toolbarHeight = toolbarHeight;
-        
+
         frame.addKeyListener(new KeyAdapter() {
             public void keyPressed(KeyEvent e) {
-                 if (e.getKeyCode() == 27) {
+                if (e.getKeyCode() == 27) {
                     System.exit(0);
-                 }
+                }
             }
         });
-        
+
         initMap(randomize);
         this.timer.start();
     }
@@ -164,11 +167,13 @@ public class Main extends JPanel implements ActionListener {
 
     /**
      * Метод инициализирует карту
+     * 
      * @param randomize Добавить на карту случайные препятствия
      */
     private void initMap(boolean randomize) {
         zeroMap();
-        if (randomize) randMap();
+        if (randomize)
+            randMap();
     }
 
     public void paint(Graphics g) {
@@ -234,17 +239,19 @@ public class Main extends JPanel implements ActionListener {
                 // Отрисовка клетки старта
                 if (i + viewportX == startX && j + viewportY == startY) {
                     g.setColor(COLOR_RED);
-                    g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2, TILE_HEIGHT - 2);
+                    g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2,
+                            TILE_HEIGHT - 2);
                     g.setColor(COLOR_WHITE);
                 }
 
                 // Отрисовка клетки финиша
                 if (i + viewportX == endX && j + viewportY == endY) {
                     g.setColor(COLOR_RED);
-                    g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2, TILE_HEIGHT - 2);
+                    g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2,
+                            TILE_HEIGHT - 2);
                     g.setColor(COLOR_WHITE);
-                }                
-                
+                }
+
                 // Отрисовка пути
                 for (int k = 0; k < path.size() - 1; k++) {
                     g.drawLine((((int) path.get(k).getX()) - viewportX + 1) * TILE_WIDTH - TILE_WIDTH / 2 + offsetX,
@@ -255,7 +262,7 @@ public class Main extends JPanel implements ActionListener {
 
             }
         }
-        
+
         // Отрисовка интерфейса
         g.fillRect(0, frame.getHeight() - toolbarHeight, frame.getWidth(), toolbarHeight);
         g.setColor(COLOR_BLACK);

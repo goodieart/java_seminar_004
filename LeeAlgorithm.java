@@ -65,11 +65,11 @@ public class LeeAlgorithm {
         }
     }
 
-    public Point getShortestDistance() {
-        return new Point(endX, endY);
-    }
-
-    public LinkedList<Point> buildPath() {
+    public LinkedList<Point> buildPath(){
+        if (distances[endX][endY] == -1) {
+            return null;
+        }
+        
         LinkedList<Point> path = new LinkedList<>();
         int x = endX, y = endY;
     
