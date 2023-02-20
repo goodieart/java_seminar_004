@@ -8,35 +8,39 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.Point;
 
 import javax.swing.JFrame;
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
-import java.math.BigInteger;
+//import java.math.Integer;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.LinkedList;
 
 public class Main extends JPanel implements ActionListener {
     static final int TILE_WIDTH = 64;
     static final int TILE_HEIGHT = 64;
-    static final BigInteger TILE_BLOCKED = new BigInteger("-1");
-    static final BigInteger TILE_FREE = new BigInteger("0");
-    static final BigInteger TILE_INIT = new BigInteger("1");
+    static final Integer TILE_BLOCKED = 1;
+    static final Integer TILE_FREE = 0;
     static final Color COLOR_WHITE = new Color(255, 255, 255);
     static final Color COLOR_BLACK = new Color(0, 0, 0);
     static final Color COLOR_RED = new Color(255, 0, 0);
     static final int FONT_SIZE = 30;
 
+    LinkedList<Point> path = new LinkedList<>();
+    int [][] dist = new int [0][0];
+
     int toolbarHeight, offsetX, offsetY, miceX, miceY;
-    int currentX, currentY, startX, startY, viewportW, viewportH;
+    int currentX, currentY, startX, startY, endX, endY, viewportW, viewportH;
     int viewportX = 1;
     int viewportY = 1;
 
     boolean showGrid = true;
     boolean isScrollBlocked = false;
 
-    BigInteger[][] map = new BigInteger[0][0];
+    int[][] map = new int[0][0];
 
     Image img = new ImageIcon("gfx/test.png").getImage();
     Image img2 = new ImageIcon("gfx/test2.png").getImage();
@@ -50,23 +54,33 @@ public class Main extends JPanel implements ActionListener {
         MouseAdapter mAdapter = new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
                 if (e.getButton() == 3) {
+                    endX = currentX;
+                    endY = currentY;
+                    if (startX != 0 || startY != 0) {
+                        LeeAlgorithm la = new LeeAlgorithm(map, startX, startY, endX, endY);
+                        dist = la.runLeeAlgorithm();
+                        try {
+                            path = la.buildPath();    
+                        } catch (Exception ex) {
+                            System.out.println(ex.getMessage());
+                        }
+                    }
+                else if (e.getButton() == 2) {
                     int mX = (e.getX() - offsetX) / TILE_WIDTH;
                     int mY = (e.getY() - offsetY) / TILE_HEIGHT;
                     map[mX + viewportX][mY + viewportY] = map[mX + viewportX][mY + viewportY] != TILE_BLOCKED
-                            ? TILE_BLOCKED
-                            : TILE_FREE;
-                    if (startX != 0 || startY != 0) {
-                        refreshMap(startX, startY);
-                        System.out.printf("Количество возможных маршрутов до правой нижней клетки: %s\n",
-                                map[map.length - 2][map[0].length - 2].toString());
-                    }
+                           ? TILE_BLOCKED
+                           : TILE_FREE;
+                }
                 } else if (e.getButton() == 1)
                     if (map[currentX][currentY] != TILE_BLOCKED) {
                         startX = currentX;
                         startY = currentY;
-                        refreshMap(startX, startY);
-                        System.out.printf("Количество возможных маршрутов до правой нижней клетки: %s\n",
-                                map[map.length - 2][map[0].length - 2].toString());
+                        if (endX != 0 || endY != 0) {
+                            LeeAlgorithm la = new LeeAlgorithm(map, startX, startY, endX, endY);
+                            dist = la.runLeeAlgorithm();
+                            path = la.buildPath();
+                        }
                     }
             }
 
@@ -93,7 +107,8 @@ public class Main extends JPanel implements ActionListener {
      */
     public Main(JFrame frame, int width, int height, boolean randomize, int toolbarHeight) {
         this.frame = frame;
-        this.map = new BigInteger[width][height];
+        this.map = new int[width][height];
+        this.dist = new int[width][height];
         this.miceX = frame.getWidth() / 2;
         this.miceY = frame.getHeight() / 2;
         
@@ -137,18 +152,6 @@ public class Main extends JPanel implements ActionListener {
     }
 
     /**
-     * Метод заполняет карту нулевыми значениями, кроме заблокированных клеток
-     */
-    private void zeroMapPath() {
-        for (int i = 0; i < map[0].length; i++) {
-            for (int j = 0; j < map.length; j++) {
-                if (map[j][i] != TILE_BLOCKED)
-                    map[j][i] = TILE_FREE;
-            }
-        }
-    }
-
-    /**
      * Метод случайным образом добавляет на карту заблокированные клетки
      */
     private void randMap() {
@@ -166,31 +169,6 @@ public class Main extends JPanel implements ActionListener {
     private void initMap(boolean randomize) {
         zeroMap();
         if (randomize) randMap();
-    }
-
-    /**
-     * Метод обновляет карту и рассчитывает маршруты
-     * @param x Координата клетки X, с которой начинается расчет маршрута
-     * @param y Координата клетки Y, с которой начинается расчет маршрута
-     */
-    private void refreshMap(int x, int y) {
-        BigInteger tempX;
-        BigInteger tempY;
-
-        zeroMapPath();
-
-        map[x][y] = TILE_INIT;
-        for (int i = y; i < map[0].length - 1; i++) {
-            for (int j = x; j < map.length - 1; j++) {
-                if (i > y || j > x) {
-                    if (map[j][i] != TILE_BLOCKED) {
-                        tempX = map[j - 1][i] == TILE_BLOCKED ? TILE_FREE : map[j - 1][i];
-                        tempY = map[j][i - 1] == TILE_BLOCKED ? TILE_FREE : map[j][i - 1];
-                        map[j][i] = tempX.add(tempY);
-                    }
-                }
-            }
-        }
     }
 
     public void paint(Graphics g) {
@@ -250,7 +228,7 @@ public class Main extends JPanel implements ActionListener {
                 // Отрисовка сетки
                 if (showGrid) {
                     g.drawRect(i * TILE_WIDTH + offsetX, j * TILE_HEIGHT + offsetY, TILE_WIDTH, TILE_HEIGHT);
-                    g.drawString(map[i + viewportX][j + viewportY].toString(), i * TILE_WIDTH + 20 + offsetX,
+                    g.drawString(Integer.toString(dist[i + viewportX][j + viewportY]), i * TILE_WIDTH + 20 + offsetX,
                             j * TILE_HEIGHT + 30 + offsetY);
                 }
                 // Отрисовка клетки старта
@@ -259,6 +237,22 @@ public class Main extends JPanel implements ActionListener {
                     g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2, TILE_HEIGHT - 2);
                     g.setColor(COLOR_WHITE);
                 }
+
+                // Отрисовка клетки финиша
+                if (i + viewportX == endX && j + viewportY == endY) {
+                    g.setColor(COLOR_RED);
+                    g.drawRect(i * TILE_WIDTH + offsetX + 1, j * TILE_HEIGHT + offsetY + 1, TILE_WIDTH - 2, TILE_HEIGHT - 2);
+                    g.setColor(COLOR_WHITE);
+                }                
+                
+                // Отрисовка пути
+                for (int k = 0; k < path.size() - 1; k++) {
+                    g.drawLine((((int) path.get(k).getX()) - viewportX + 1) * TILE_WIDTH - TILE_WIDTH / 2 + offsetX,
+                            (((int) path.get(k).getY()) - viewportY + 1) * TILE_HEIGHT - TILE_HEIGHT / 2 + offsetY,
+                            (((int) path.get(k + 1).getX()) - viewportX + 1) * TILE_WIDTH - TILE_WIDTH / 2 + offsetX,
+                            (((int) path.get(k + 1).getY()) - viewportY + 1) * TILE_HEIGHT - TILE_HEIGHT / 2 + offsetY);
+                }
+
             }
         }
         
@@ -267,7 +261,7 @@ public class Main extends JPanel implements ActionListener {
         g.setColor(COLOR_BLACK);
         g.drawString("X:" + Integer.toString(currentX), 10, frame.getHeight() - toolbarHeight + FONT_SIZE);
         g.drawString("Y:" + Integer.toString(currentY), 80, frame.getHeight() - toolbarHeight + FONT_SIZE);
-        g.drawString(map[currentX][currentY].toString(), frame.getWidth() / 2,
+        g.drawString(Integer.toString(map[currentX][currentY]), frame.getWidth() / 2,
                 frame.getHeight() - toolbarHeight + FONT_SIZE);
     }
 
